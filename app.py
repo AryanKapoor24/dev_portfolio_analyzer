@@ -1,4 +1,5 @@
 import streamlit as st
+from auth.github_oauth import get_github_login_url
 
 # -----------------------------
 # Page configuration
@@ -24,9 +25,13 @@ st.divider()
 st.subheader("Get started")
 
 # GitHub logo + login button
-github_button = st.link_button(
+
+
+github_url = get_github_login_url()
+
+st.link_button(
     "🐙  Continue with GitHub",
-    "#",
+    github_url,
     use_container_width=True
 )
 
