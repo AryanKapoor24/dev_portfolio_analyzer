@@ -1,9 +1,8 @@
 import streamlit as st
-from auth.github_oauth import get_github_login_url
 
-# -----------------------------
-# Page configuration
-# -----------------------------
+from auth.github_oauth import get_github_login_url, exchange_code_for_token
+from backend.github_api import get_github_user
+
 st.set_page_config(
     page_title="Developer Portfolio Analyzer",
     page_icon="🐙",
@@ -11,60 +10,39 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Header
+# Check if GitHub sent us a code
 # -----------------------------
+
+code = st.query_params.get("code")
+
+if code:
+    token_data = exchange_code_for_token(code)
+
+    access_token = token_data["access_token"]
+
+    user = get_github_user(access_token)
+
+    st.write(user)
+
+
+# -----------------------------
+# Login UI
+# -----------------------------
+
 st.title("Developer Portfolio Analyzer")
-st.write("Analyze your GitHub profile and discover your developer strengths.")
+
+st.write(
+    "Analyze your GitHub profile and discover your developer strengths."
+)
 
 st.divider()
 
-# -----------------------------
-# GitHub Login
-# -----------------------------
-
 st.subheader("Get started")
-
-# GitHub logo + login button
-
 
 github_url = get_github_login_url()
 
 st.link_button(
-    "🐙  Continue with GitHub",
+    "🐙 Continue with GitHub",
     github_url,
     use_container_width=True
-)
-
-st.caption("You'll be redirected to GitHub to securely authorize access.")
-
-st.divider()
-
-# -----------------------------
-# Temporary UI
-# -----------------------------
-st.subheader("Preview")
-
-user_text = st.text_input(
-    "Enter some text:",
-    placeholder="This will be replaced by your GitHub profile..."
-)
-
-slider_val = st.slider(
-    "Select a value:",
-    min_value=0,
-    max_value=100,
-    value=50
-)
-
-st.write(f"You entered: {user_text}")
-st.write(f"Slider value: {slider_val}")
-
-# -----------------------------
-# Download
-# -----------------------------
-st.download_button(
-    label="Download text",
-    data=user_text,
-    file_name="output.txt",
-    mime="text/plain"
 )
