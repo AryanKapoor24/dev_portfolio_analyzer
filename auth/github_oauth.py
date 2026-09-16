@@ -5,12 +5,15 @@ import requests
 def get_github_login_url():
     client_id = st.secrets["GITHUB_CLIENT_ID"]
 
-    return (
+    url = (
         "https://github.com/login/oauth/authorize"
         f"?client_id={client_id}"
         "&redirect_uri=http://localhost:8501"
         "&scope=read:user%20repo"
     )
+
+    return url
+
 
 def exchange_code_for_token(code):
     response = requests.post(

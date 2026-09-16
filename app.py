@@ -14,6 +14,7 @@ st.set_page_config(
 # -----------------------------
 
 code = st.query_params.get("code")
+st.write(f"Code: {code}")
 
 if code:
     token_data = exchange_code_for_token(code)
@@ -41,8 +42,9 @@ st.subheader("Get started")
 
 github_url = get_github_login_url()
 
+st.write(github_url)
+
 st.link_button(
     "🐙 Continue with GitHub",
-    github_url,
-    use_container_width=True
+    github_url
 )
