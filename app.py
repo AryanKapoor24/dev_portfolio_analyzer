@@ -1,50 +1,102 @@
 import streamlit as st
 
-from auth.github_oauth import get_github_login_url, exchange_code_for_token
-from backend.github_api import get_github_user
-
-st.set_page_config(
-    page_title="Developer Portfolio Analyzer",
-    page_icon="🐙",
-    layout="centered"
+from auth.github_oauth import (
+    get_github_login_url,
+    exchange_code_for_token
 )
 
-# -----------------------------
-# Check if GitHub sent us a code
-# -----------------------------
+from backend.github_api import (
+    get_github_user,
+    get_github_repos
+)
 
-code = st.query_params.get("code")
-st.write(f"Code: {code}")
-
-if code:
-    token_data = exchange_code_for_token(code)
-
-    access_token = token_data["access_token"]
-
-    user = get_github_user(access_token)
-
-    st.write(user)
-
-
-# -----------------------------
-# Login UI
-# -----------------------------
 
 st.title("Developer Portfolio Analyzer")
 
-st.write(
-    "Analyze your GitHub profile and discover your developer strengths."
-)
+# -------------------------
+# GitHub Login
+# -------------------------
 
-st.divider()
+code = st.query_params.get("code")
 
-st.subheader("Get started")
+if code and "github_token" not in st.session_state:
 
-github_url = get_github_login_url()
+    token_data = exchange_code_for_token(code)
 
-st.write(github_url)
+    if "access_token" in token_data:
 
-st.link_button(
-    "🐙 Continue with GitHub",
-    github_url
-)
+        st.session_state["github_token"] = token_data["access_token"]
+
+        user = get_github_user(
+            st.session_state["github_token"]
+        )
+
+        st.session_state["github_user"] = user
+
+        st.query_params.clear()
+
+
+# -------------------------
+# Logged-in User
+# -------------------------
+
+if "github_token" not in st.session_state:
+
+    login_url = get_github_login_url()
+
+    st.markdown(
+        f'<a href="{login_url}" target="_self">'
+        '<button>Login with GitHub</button>'
+        '</a>',
+        unsafe_allow_html=True
+    )
+
+else:
+
+    access_token = st.session_state["github_token"]
+    user = st.session_state["github_user"]
+
+    st.header(f"Welcome, {user['login']} 👋")
+
+    # -------------------------
+    # Get repositories
+    # -------------------------
+
+    repos = get_github_repos(access_token)
+
+    st.subheader("Your Repositories")
+
+    st.write(f"Total repositories: **{len(repos)}**")
+
+    # -------------------------
+    # Display repositories
+    # -------------------------
+
+    for repo in repos:
+
+        st.markdown("---")
+
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+
+            st.subheader(repo["name"])
+
+            if repo["description"]:
+                st.write(repo["description"])
+            else:
+                st.write("No description")
+
+            if repo["language"]:
+                st.write(f"💻 **Language:** {repo['language']}")
+
+        with col2:
+
+            st.write(f"⭐ {repo['stargazers_count']}")
+            st.write(f"🍴 {repo['forks_count']}")
+
+            if repo["html_url"]:
+                st.link_button(
+                    "View Repository",
+                    repo["html_url"]
+                )
