@@ -8,7 +8,8 @@ from auth.github_oauth import (
 from backend.github_api import (
     get_github_user,
     get_github_repos,
-    get_repository_languages
+    get_repository_languages,
+    get_repository_commits
 )
 
 
@@ -106,21 +107,18 @@ else:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-
         st.metric(
             "Public Repositories",
             user["public_repos"]
         )
 
     with col2:
-
         st.metric(
             "Followers",
             user["followers"]
         )
 
     with col3:
-
         st.metric(
             "Following",
             user["following"]
@@ -131,87 +129,122 @@ else:
     # Get Repositories
     # ======================================
 
-    st.subheader("Your Repositories")
-
     repos = get_github_repos(access_token)
 
-    st.write(
-        f"Repositories returned: **{len(repos)}**"
+
+    # ======================================
+    # Repository Selection
+    # ======================================
+
+    st.subheader("Select Repositories to Analyze")
+
+    repo_names = [
+        repo["name"]
+        for repo in repos
+    ]
+
+    st.multiselect(
+        "Choose repositories",
+        repo_names,
+        key="selected_repos"
     )
 
+    selected_repos = st.session_state["selected_repos"]
+
 
     # ======================================
-    # Display Repositories
+    # Show Selected Repositories
     # ======================================
 
-    for repo in repos:
+    if selected_repos:
 
-        # ----------------------------------
-        # Get Repository Languages
-        # ----------------------------------
+        st.subheader("Selected Repositories")
 
-        languages = get_repository_languages(
-            access_token,
-            repo["owner"]["login"],
-            repo["name"]
-        )
+        for repo in repos:
+
+            # Only show selected repositories
+            if repo["name"] not in selected_repos:
+                continue
 
 
-        st.markdown("---")
+            # ----------------------------------
+            # Get Languages
+            # ----------------------------------
 
-        col1, col2 = st.columns([3, 1])
-
-
-        # ----------------------------------
-        # Repository Information
-        # ----------------------------------
-
-        with col1:
-
-            st.subheader(repo["name"])
-
-            description = repo["description"]
-
-            if description:
-
-                st.write(description)
-
-            else:
-
-                st.write("No description")
+            languages = get_repository_languages(
+                access_token,
+                repo["owner"]["login"],
+                repo["name"]
+            )
 
 
-            st.write("💻 **Languages:**")
+            st.markdown("---")
+
+            col1, col2 = st.columns([3, 1])
 
 
-            if languages:
+            # ----------------------------------
+            # Repository Information
+            # ----------------------------------
 
-                for language, bytes_count in languages.items():
+            with col1:
+
+                st.subheader(repo["name"])
+
+                if repo["description"]:
+                    st.write(repo["description"])
+                else:
+                    st.write("No description")
+
+
+                st.write("💻 **Languages:**")
+
+
+                if languages:
+
+                    for language, bytes_count in languages.items():
+
+                        st.write(
+                            f"- {language}: {bytes_count} bytes"
+                        )
+
+                else:
 
                     st.write(
-                        f"- {language}: {bytes_count} bytes"
+                        "No language data available"
                     )
 
-            else:
 
-                st.write("No language data available")
+            # ----------------------------------
+            # Repository Statistics
+            # ----------------------------------
+
+            with col2:
+
+                st.write(
+                    f"⭐ **Stars:** {repo['stargazers_count']}"
+                )
+
+                st.write(
+                    f"🍴 **Forks:** {repo['forks_count']}"
+                )
+
+                st.link_button(
+                    "View Repository",
+                    repo["html_url"]
+                )
 
 
-        # ----------------------------------
-        # Repository Statistics
-        # ----------------------------------
+            # ----------------------------------
+            # Get Commits
+            # ----------------------------------
 
-        with col2:
-
-            st.write(
-                f"⭐ **Stars:** {repo['stargazers_count']}"
+            commits = get_repository_commits(
+                access_token,
+                repo["owner"]["login"],
+                repo["name"]
             )
 
             st.write(
-                f"🍴 **Forks:** {repo['forks_count']}"
-            )
-
-            st.link_button(
-                "View Repository",
-                repo["html_url"]
+                f"📝 **Commits returned:** {len(commits)}"
             )

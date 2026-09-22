@@ -46,3 +46,4 @@ def get_repository_commits(access_token, owner, repo):
     )
 
     return response.json()
+
