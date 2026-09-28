@@ -19,6 +19,8 @@ def analyze_dates(access_token, owner, repo):
     date =[]
     for i in range (len(commits)):
         date.append(commits[i]['commit']['author']['date'])
+
+        
     max_date= max(date)
 
     return max_date
