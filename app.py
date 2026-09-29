@@ -11,7 +11,7 @@ from backend.github_api import (
     get_repository_languages,
     get_repository_commits
 )
-
+from backend.analyzer import analyze_repository
 
 # ==========================================
 # Page Configuration
@@ -130,6 +130,26 @@ else:
     # ======================================
 
     repos = get_github_repos(access_token)
+
+    analyzed_repos = []
+
+    for repo in repos:
+
+        result = analyze_repository(
+            access_token,
+            repo
+        )
+        analyzed_repos.append(result)
+
+        st.markdown("---")
+
+        st.subheader(f"Repository: {repo['name']}")
+
+        st.write("Analysis Result:")
+
+    
+
+        st.write(result)
 
 
     # ======================================

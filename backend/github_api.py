@@ -82,3 +82,14 @@ def get_repository_commits(access_token, owner, repo):
         page += 1
 
     return all_commits
+
+def get_repository_readme(access_token, owner, repo):
+    response = requests.get(
+        f"https://api.github.com/repos/{owner}/{repo}/readme",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/vnd.github+json",
+        }
+    )
+
+    return response.json()
