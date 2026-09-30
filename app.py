@@ -141,15 +141,11 @@ else:
         )
         analyzed_repos.append(result)
 
-        st.markdown("---")
+    developer_profile = analyze_developer(access_token, repos, analyzed_repos)
 
-        st.subheader(f"Repository: {repo['name']}")
-
-        st.write("Analysis Result:")
-
-    
-
-        st.write(result)
+    st.markdown("---")
+    st.subheader("Developer Profile")
+    st.write(developer_profile)
 
 
     # ======================================
