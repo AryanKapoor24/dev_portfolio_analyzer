@@ -1,5 +1,6 @@
 from backend.github_api import get_repository_commits, get_repository_languages, get_repository_readme
 from datetime import datetime , timedelta, timezone
+from collections import defaultdict
 
 def analyze_commits(acess_token, owner, repo):
 
@@ -230,4 +231,76 @@ def analyze_repository(access_token, repo):
         "forks": repo["forks_count"],
         "readme_status": readme_status
     }
+
+def analyze_total_language_percentage(access_token, repos):
+        totals = defaultdict(int)
+
+        for repo in repos:
+               languages = get_repository_languages(
+                    access_token,
+                    repo["owner"]["login"],
+                    repo["name"]
+                )
+
+               for language, bytes_count in languages.items():
+                   totals[language] += bytes_count
+
+        total_bytes = sum(totals.values())
+
+        for key, value in totals.items():
+            
+            percentage = (value / total_bytes) * 100
+            totals[key] = round(percentage, 2)
+
+        return dict(totals)
+
+
+
+def analyze_developer(access_token, repos, analyzed_repos):
+    total_commits= 0
+    total_stars =0
+    total_forks =0
+    active_repos = 0
+    total_repos= len(analyzed_repos)
+    total_percentage = analyze_total_language_percentage(access_token, repos)
+
+
+    for repo in analyzed_repos:
+
+
+        
+        
+        total_commits += repo["total_commits"]
+        total_stars += repo["stars"]
+        total_forks += repo["forks"]
+
+        if repo["activity_status"] == "Active":
+            active_repos += 1
+
+    return{
+        "total_repositories": total_repos,
+        "total_commits": total_commits,
+        "total_stars": total_stars,
+        "total_forks": total_forks,
+        "active_repositories": active_repos,
+        "total_distribution": total_percentage 
+    }
+
+
+
+
+
+               
+
+        
+     
+        
+        
+
+
+        
+
+        
+                
+
 

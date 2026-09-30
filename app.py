@@ -11,7 +11,7 @@ from backend.github_api import (
     get_repository_languages,
     get_repository_commits
 )
-from backend.analyzer import analyze_repository
+from backend.analyzer import analyze_repository, analyze_developer
 
 # ==========================================
 # Page Configuration
@@ -196,7 +196,7 @@ else:
                 repo["owner"]["login"],
                 repo["name"]
             )
-
+            result = analyze_developer(access_token, repos, analyzed_repos)
 
             st.markdown("---")
 
