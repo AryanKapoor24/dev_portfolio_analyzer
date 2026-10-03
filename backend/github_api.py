@@ -1,95 +1,85 @@
 import requests
 
 
-def get_github_user(access_token):
+
+def github_request(url, access_token, params=None):
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/vnd.github+json"
+    }
+
     response = requests.get(
-        "https://api.github.com/user",
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Accept": "application/vnd.github+json",
-        },
+        url,
+        headers=headers,
+        params=params
     )
+
+    response.raise_for_status()
 
     return response.json()
 
+def get_github_user(access_token):
+    url=    "https://api.github.com/user"
+    return github_request(url, access_token)
+
 def get_github_repos(access_token):
-    repo = []
+    all_repos = []
     page = 1
 
     while True:
-        response = requests.get(
-            "https://api.github.com/user/repos",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Accept": "application/vnd.github+json",
-            },
+        url = "https://api.github.com/user/repos"
+
+        repos = github_request(
+            url,
+            access_token,
             params={
                 "page": page,
                 "per_page": 100
             }
         )
-
-        repos = response.json()
 
         if not repos:
             break
 
-        repo.extend(repos)
-
+        all_repos.extend(repos)
         page += 1
 
-    return repo
+    return all_repos
     
 
 def get_repository_languages(access_token, owner, repo):
 
-    response = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/languages",
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Accept": "application/vnd.github+json",
-        },
-    )
+    url = f"https://api.github.com/repos/{owner}/{repo}/languages"
 
-    return response.json()
+    return github_request(url, access_token)
+        
 
 def get_repository_commits(access_token, owner, repo):
-
     all_commits = []
     page = 1
 
     while True:
+        url = f"https://api.github.com/repos/{owner}/{repo}/commits"
 
-        response = requests.get(
-            f"https://api.github.com/repos/{owner}/{repo}/commits",
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Accept": "application/vnd.github+json",
-            },
+        commits = github_request(
+            url,
+            access_token,
             params={
                 "page": page,
                 "per_page": 100
             }
         )
-
-        commits = response.json()
 
         if not commits:
             break
 
         all_commits.extend(commits)
-
         page += 1
 
     return all_commits
 
 def get_repository_readme(access_token, owner, repo):
-    response = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/readme",
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Accept": "application/vnd.github+json",
-        }
-    )
+    url= f"https://api.github.com/repos/{owner}/{repo}/readme"
 
-    return response.json()
+    return github_request(url, access_token)
+        

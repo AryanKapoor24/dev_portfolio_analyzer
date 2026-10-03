@@ -2,14 +2,10 @@ from backend.github_api import get_repository_commits, get_repository_languages,
 from datetime import datetime , timedelta, timezone
 from collections import defaultdict
 
-def analyze_commits(acess_token, owner, repo):
+def analyze_commits(commits):
 
-    total_commits= get_repository_commits(
-        acess_token,
-        owner,
-        repo
-    )
-    return len(total_commits)
+    
+    return len(commits)
 
 
 
@@ -43,25 +39,23 @@ def analyze_dates(access_token, owner, repo):
 
     
 
-def analyze_commit_freqency(access_token, owner, repo):
 
-    commits= get_repository_commits(
-        access_token, owner, repo
-    )
+def analyze_commit_frequency(commits):
+    counter = 0
 
-    counter=0
-    for i in range (len(commits)):
-        date= commits[i]['commit']['author']['date']
+    today = datetime.now(timezone.utc)
+    thirty_days_ago = today - timedelta(days=30)
+
+    for i in range(len(commits)):
+        date = commits[i]["commit"]["author"]["date"]
 
         commit_date = datetime.fromisoformat(
-            date.replace('Z', '+00:00'))
+            date.replace("Z", "+00:00")
+        )
 
-        today = datetime.now(timezone.utc)
-
-        thirty_days_ago = today - timedelta(days=30)
-
-        if commit_date >= thrity_days_ago:
+        if commit_date >= thirty_days_ago:
             counter += 1
+
     return counter
 
 def analyze_most_used_language(languages):
@@ -200,16 +194,15 @@ def analyze_repository(access_token, repo):
 
     most_used_language = analyze_most_used_language(languages)
 
-    commits = analyze_commits(
+    commits = get_repository_commits(
         access_token,
         repo["owner"]["login"],
         repo["name"]
     )
+    total_commits = analyze_commits(commits)
 
     commit_frequency = analyze_commit_frequency(
-        access_token,
-        repo["owner"]["login"],
-        repo["name"]
+        commits
     )
 
     activity_status = analyze_repo_activity(repo)
@@ -224,7 +217,7 @@ def analyze_repository(access_token, repo):
         "name": repo["name"],
         "languages": languages,
         "most_used_language": most_used_language,
-        "total_commits": commits,
+        "total_commits": total_commits,
         "commit_frequency": commit_frequency,
         "activity_status": activity_status,
         "stars": repo["stargazers_count"],
