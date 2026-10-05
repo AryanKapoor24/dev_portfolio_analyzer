@@ -11,7 +11,12 @@ from backend.github_api import (
     get_repository_languages,
     get_repository_commits
 )
-from backend.analyzer import analyze_repository, analyze_developer
+
+from backend.analyzer import (
+    analyze_repos,
+    analyze_developer
+)
+
 
 # ==========================================
 # Page Configuration
@@ -126,31 +131,108 @@ else:
 
 
     # ======================================
-    # Get Repositories
+    # Get ALL Repositories
     # ======================================
 
     repos = get_github_repos(access_token)
+
+
+    # ======================================
+    # Analyze ALL Repositories
+    # ======================================
 
     analyzed_repos = []
 
     for repo in repos:
 
-        result = analyze_repository(
+        result = analyze_repos(
             access_token,
             repo
         )
+
         analyzed_repos.append(result)
 
-    developer_profile = analyze_developer(access_token, repos, analyzed_repos)
+
+    # ======================================
+    # Developer Profile
+    # ======================================
+
+    developer_profile = analyze_developer(
+        analyzed_repos
+    )
 
     st.markdown("---")
+
     st.subheader("Developer Profile")
-    st.write(developer_profile)
+
+
+    # ======================================
+    # Developer Metrics
+    # ======================================
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    with col1:
+        st.metric(
+            "Repositories",
+            developer_profile["total_repositories"]
+        )
+
+    with col2:
+        st.metric(
+            "Total Commits",
+            developer_profile["total_commits"]
+        )
+
+    with col3:
+        st.metric(
+            "Total Stars",
+            developer_profile["total_stars"]
+        )
+
+    with col4:
+        st.metric(
+            "Total Forks",
+            developer_profile["total_forks"]
+        )
+
+    with col5:
+        st.metric(
+            "Active Repositories",
+            developer_profile["active_repositories"]
+        )
+
+
+    # ======================================
+    # Language Distribution
+    # ======================================
+
+    st.subheader("Language Distribution")
+
+    language_distribution = developer_profile[
+        "total_distribution"
+    ]
+
+    if language_distribution:
+
+        for language, percentage in language_distribution.items():
+
+            st.write(
+                f"**{language}: {percentage}%**"
+            )
+
+    else:
+
+        st.write(
+            "No language data available."
+        )
 
 
     # ======================================
     # Repository Selection
     # ======================================
+
+    st.markdown("---")
 
     st.subheader("Select Repositories to Analyze")
 
@@ -174,54 +256,62 @@ else:
 
     if selected_repos:
 
+        st.markdown("---")
+
         st.subheader("Selected Repositories")
 
         for repo in repos:
 
-            # Only show selected repositories
             if repo["name"] not in selected_repos:
                 continue
 
 
-            # ----------------------------------
-            # Get Languages
-            # ----------------------------------
-
-            languages = get_repository_languages(
-                access_token,
-                repo["owner"]["login"],
-                repo["name"]
-            )
-            result = analyze_developer(access_token, repos, analyzed_repos)
-
-            st.markdown("---")
+            # ==================================
+            # Repository Information
+            # ==================================
 
             col1, col2 = st.columns([3, 1])
 
-
-            # ----------------------------------
-            # Repository Information
-            # ----------------------------------
-
             with col1:
 
-                st.subheader(repo["name"])
+                st.subheader(
+                    repo["name"]
+                )
 
                 if repo["description"]:
-                    st.write(repo["description"])
+
+                    st.write(
+                        repo["description"]
+                    )
+
                 else:
-                    st.write("No description")
+
+                    st.write(
+                        "No description"
+                    )
 
 
-                st.write("💻 **Languages:**")
+                # ----------------------------------
+                # Languages
+                # ----------------------------------
 
+                st.write(
+                    "💻 **Languages:**"
+                )
+
+                languages = get_repository_languages(
+                    access_token,
+                    repo["owner"]["login"],
+                    repo["name"]
+                )
 
                 if languages:
 
                     for language, bytes_count in languages.items():
 
                         st.write(
-                            f"- {language}: {bytes_count} bytes"
+                            f"- {language}: "
+                            f"{bytes_count} bytes"
                         )
 
                 else:
@@ -231,18 +321,20 @@ else:
                     )
 
 
-            # ----------------------------------
+            # ==================================
             # Repository Statistics
-            # ----------------------------------
+            # ==================================
 
             with col2:
 
                 st.write(
-                    f"⭐ **Stars:** {repo['stargazers_count']}"
+                    f"⭐ **Stars:** "
+                    f"{repo['stargazers_count']}"
                 )
 
                 st.write(
-                    f"🍴 **Forks:** {repo['forks_count']}"
+                    f"🍴 **Forks:** "
+                    f"{repo['forks_count']}"
                 )
 
                 st.link_button(
@@ -251,9 +343,9 @@ else:
                 )
 
 
-            # ----------------------------------
-            # Get Commits
-            # ----------------------------------
+            # ==================================
+            # Commits
+            # ==================================
 
             commits = get_repository_commits(
                 access_token,
@@ -262,5 +354,15 @@ else:
             )
 
             st.write(
-                f"📝 **Commits returned:** {len(commits)}"
+                f"📝 **Commits returned:** "
+                f"{len(commits)}"
             )
+
+            st.markdown("---")
+
+    else:
+
+        st.info(
+            "Select one or more repositories "
+            "to view their details."
+        )

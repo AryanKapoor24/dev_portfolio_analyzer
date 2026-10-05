@@ -69,13 +69,9 @@ def analyze_most_used_language(languages):
         if value == highest_value:
             return key
 
-def analyze_language(access_token, owner, repo):
+def analyze_language(languages):
 
-    languages = get_repository_languages(
-        access_token,
-        owner,
-        repo
-    )
+    
 
     if not languages:
         return {}
@@ -92,36 +88,23 @@ def analyze_language(access_token, owner, repo):
 
 
 
-def analyze_commit_frequency(access_token, owner, repo):
-    commits = get_repository_commits(
-        access_token,
-        owner,
-        repo
-    )
+def analyze_commit_frequency(commits):
+    counter = 0
 
-    if not commits:
-        return 0
-
-    dates = []
+    today = datetime.now(timezone.utc)
+    thirty_days_ago = today - timedelta(days=30)
 
     for commit in commits:
         date = commit["commit"]["author"]["date"]
+
         commit_date = datetime.fromisoformat(
             date.replace("Z", "+00:00")
         )
-        dates.append(commit_date)
 
-    oldest_date = min(dates)
-    newest_date = max(dates)
+        if commit_date >= thirty_days_ago:
+            counter += 1
 
-    days = (newest_date - oldest_date).days
-
-    if days < 30:
-        return len(commits)
-
-    months = days / 30
-
-    return round(len(commits) / months, 2)
+    return counter
 
 
 def analyze_repo_activity(repo):
@@ -184,14 +167,18 @@ def analyze_readme(access_token, owner, repo):
 
 
 
-def analyze_repository(access_token, repo):
+def analyze_repos(access_token, repo):
 
-    languages = analyze_language(
-        access_token,
-        repo["owner"]["login"],
-        repo["name"]
-    )
+    raw_languages = get_repository_languages(
+            access_token,
+            repo["owner"]["login"],
+            repo["name"]
+        )
+        
 
+    languages = analyze_language(raw_languages)
+
+    
     most_used_language = analyze_most_used_language(languages)
 
     commits = get_repository_commits(
@@ -216,6 +203,7 @@ def analyze_repository(access_token, repo):
     return {
         "name": repo["name"],
         "languages": languages,
+        "language_bytes": raw_languages,
         "most_used_language": most_used_language,
         "total_commits": total_commits,
         "commit_frequency": commit_frequency,
@@ -225,44 +213,40 @@ def analyze_repository(access_token, repo):
         "readme_status": readme_status
     }
 
-def analyze_total_language_percentage(access_token, repos):
-        totals = defaultdict(int)
+def analyze_total_language_percentage(analyzed_repos):
+    totals = defaultdict(int)
 
-        for repo in repos:
-               languages = get_repository_languages(
-                    access_token,
-                    repo["owner"]["login"],
-                    repo["name"]
-                )
+    for repo in analyzed_repos:
+        languages = repo["language_bytes"]
 
-               for language, bytes_count in languages.items():
-                   totals[language] += bytes_count
+        for language, bytes_count in languages.items():
+            totals[language] += bytes_count
 
-        total_bytes = sum(totals.values())
+    total_bytes = sum(totals.values())
 
-        for key, value in totals.items():
-            
-            percentage = (value / total_bytes) * 100
-            totals[key] = round(percentage, 2)
+    if total_bytes == 0:
+        return {}
 
-        return dict(totals)
+    percentages = {}
+
+    for language, bytes_count in totals.items():
+        percentage = (bytes_count / total_bytes) * 100
+        percentages[language] = round(percentage, 2)
+
+    return percentages
 
 
-
-def analyze_developer(access_token, repos, analyzed_repos):
+def analyze_developer(analyzed_repos):
     total_commits= 0
     total_stars =0
     total_forks =0
     active_repos = 0
     total_repos= len(analyzed_repos)
-    total_percentage = analyze_total_language_percentage(access_token, repos)
+    total_percentage = analyze_total_language_percentage(analyzed_repos)
 
 
     for repo in analyzed_repos:
 
-
-        
-        
         total_commits += repo["total_commits"]
         total_stars += repo["stars"]
         total_forks += repo["forks"]
