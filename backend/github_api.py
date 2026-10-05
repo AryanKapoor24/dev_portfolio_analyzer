@@ -1,5 +1,10 @@
+import time
 import requests
 
+
+# Timing of every GitHub call: (url, seconds).
+# Filled by github_request, read by portfolio_service to print a summary.
+request_timings = []
 
 
 def github_request(url, access_token, params=None):
@@ -8,11 +13,15 @@ def github_request(url, access_token, params=None):
         "Accept": "application/vnd.github+json"
     }
 
+    start = time.perf_counter()
+
     response = requests.get(
         url,
         headers=headers,
         params=params
     )
+
+    request_timings.append((url, time.perf_counter() - start))
 
     response.raise_for_status()
 

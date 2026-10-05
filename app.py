@@ -18,7 +18,7 @@ from backend.portfolio_service import generate_portfolio
 # Cached by GitHub username, which stays the same across logins.
 # The leading underscore tells Streamlit not to include the token
 # in the cache key (a new token is issued on every login).
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)
 def get_portfolio(username, _access_token):
     return generate_portfolio(_access_token)
 
@@ -141,10 +141,12 @@ else:
 
     start = time.time()
 
-    portfolio = get_portfolio(
-        user["login"],
-        access_token
-    )
+    with st.spinner("Analyzing your GitHub…"):
+
+        portfolio = get_portfolio(
+            user["login"],
+            access_token
+        )
 
     end = time.time()
 
