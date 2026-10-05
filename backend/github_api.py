@@ -55,28 +55,18 @@ def get_repository_languages(access_token, owner, repo):
         
 
 def get_repository_commits(access_token, owner, repo):
-    all_commits = []
-    page = 1
 
-    while True:
-        url = f"https://api.github.com/repos/{owner}/{repo}/commits"
+    url = f"https://api.github.com/repos/{owner}/{repo}/commits"
 
-        commits = github_request(
-            url,
-            access_token,
-            params={
-                "page": page,
-                "per_page": 100
-            }
-        )
+    commits = github_request(
+        url,
+        access_token,
+        params={
+            "per_page": 100
+        }
+    )
 
-        if not commits:
-            break
-
-        all_commits.extend(commits)
-        page += 1
-
-    return all_commits
+    return commits
 
 def get_repository_readme(access_token, owner, repo):
     url= f"https://api.github.com/repos/{owner}/{repo}/readme"

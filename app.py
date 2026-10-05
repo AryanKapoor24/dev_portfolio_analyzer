@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 
 from auth.github_oauth import (
@@ -5,17 +6,21 @@ from auth.github_oauth import (
     exchange_code_for_token
 )
 
-from backend.github_api import (
-    get_github_user,
-    get_github_repos,
-    get_repository_languages,
-    get_repository_commits
-)
+from backend.github_api import get_github_user
 
-from backend.analyzer import (
-    analyze_repos,
-    analyze_developer
-)
+from backend.portfolio_service import generate_portfolio
+
+
+# ==========================================
+# Cached Portfolio
+# ==========================================
+
+# Cached by GitHub username, which stays the same across logins.
+# The leading underscore tells Streamlit not to include the token
+# in the cache key (a new token is issued on every login).
+@st.cache_data(ttl=600)
+def get_portfolio(username, _access_token):
+    return generate_portfolio(_access_token)
 
 
 # ==========================================
@@ -131,75 +136,85 @@ else:
 
 
     # ======================================
-    # Get ALL Repositories
+    # Generate Portfolio
     # ======================================
 
-    repos = get_github_repos(access_token)
+    start = time.time()
 
+    portfolio = get_portfolio(
+        user["login"],
+        access_token
+    )
 
-    # ======================================
-    # Analyze ALL Repositories
-    # ======================================
+    end = time.time()
 
-    analyzed_repos = []
+    st.write(
+        f"Portfolio generation took "
+        f"{end - start:.2f} seconds"
+    )
 
-    for repo in repos:
+    repos = portfolio[
+        "repositories"
+    ]
 
-        result = analyze_repos(
-            access_token,
-            repo
-        )
+    analyzed_repos = portfolio[
+        "analyzed_repositories"
+    ]
 
-        analyzed_repos.append(result)
+    developer_profile = portfolio[
+        "developer_profile"
+    ]
 
 
     # ======================================
     # Developer Profile
     # ======================================
 
-    developer_profile = analyze_developer(
-        analyzed_repos
-    )
-
     st.markdown("---")
 
     st.subheader("Developer Profile")
 
-
-    # ======================================
-    # Developer Metrics
-    # ======================================
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         st.metric(
             "Repositories",
-            developer_profile["total_repositories"]
+            developer_profile[
+                "total_repositories"
+            ]
         )
 
     with col2:
         st.metric(
             "Total Commits",
-            developer_profile["total_commits"]
+            developer_profile[
+                "total_commits"
+            ]
         )
 
     with col3:
         st.metric(
             "Total Stars",
-            developer_profile["total_stars"]
+            developer_profile[
+                "total_stars"
+            ]
         )
 
     with col4:
         st.metric(
             "Total Forks",
-            developer_profile["total_forks"]
+            developer_profile[
+                "total_forks"
+            ]
         )
 
     with col5:
         st.metric(
             "Active Repositories",
-            developer_profile["active_repositories"]
+            developer_profile[
+                "active_repositories"
+            ]
         )
 
 
@@ -247,7 +262,9 @@ else:
         key="selected_repos"
     )
 
-    selected_repos = st.session_state["selected_repos"]
+    selected_repos = st.session_state[
+        "selected_repos"
+    ]
 
 
     # ======================================
@@ -260,7 +277,9 @@ else:
 
         st.subheader("Selected Repositories")
 
-        for repo in repos:
+
+        # analyzed_repos is built in the same order as repos
+        for repo, analysis in zip(repos, analyzed_repos):
 
             if repo["name"] not in selected_repos:
                 continue
@@ -271,6 +290,7 @@ else:
             # ==================================
 
             col1, col2 = st.columns([3, 1])
+
 
             with col1:
 
@@ -299,11 +319,7 @@ else:
                     "💻 **Languages:**"
                 )
 
-                languages = get_repository_languages(
-                    access_token,
-                    repo["owner"]["login"],
-                    repo["name"]
-                )
+                languages = analysis["language_bytes"]
 
                 if languages:
 
@@ -347,18 +363,13 @@ else:
             # Commits
             # ==================================
 
-            commits = get_repository_commits(
-                access_token,
-                repo["owner"]["login"],
-                repo["name"]
-            )
-
             st.write(
                 f"📝 **Commits returned:** "
-                f"{len(commits)}"
+                f"{analysis['total_commits']}"
             )
 
             st.markdown("---")
+
 
     else:
 
