@@ -1,0 +1,11 @@
+# Python cache files (generated automatically)
+__pycache__/
+*.pyc
+
+# Secrets - never commit these
+.streamlit/secrets.toml
+.env
+
+# Virtual environments
+venv/
+.venv/
