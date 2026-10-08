@@ -1,13 +1,15 @@
 import time
 import requests
+from urllib.parse import urlparse, parse_qs
 
 
 # Timing of every GitHub call: (url, seconds).
-# Filled by github_request, read by portfolio_service to print a summary.
+# Filled by github_get, read by portfolio_service to print a summary.
 request_timings = []
 
 
-def github_request(url, access_token, params=None):
+def github_get(url, access_token, params=None):
+    # Returns the full response (body + headers), or None for "no data"
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Accept": "application/vnd.github+json"
@@ -32,6 +34,16 @@ def github_request(url, access_token, params=None):
 
     # Any other error (bad token, rate limit, ...) is a real problem
     response.raise_for_status()
+
+    return response
+
+
+def github_request(url, access_token, params=None):
+    # Returns just the JSON body, or None for "no data"
+    response = github_get(url, access_token, params)
+
+    if response is None:
+        return None
 
     return response.json()
 
@@ -72,20 +84,56 @@ def get_repository_languages(access_token, owner, repo):
     return github_request(url, access_token) or {}
 
 
+COMMITS_PER_PAGE = 100
+
+
 def get_repository_commits(access_token, owner, repo):
+    # Returns (newest commits, total commit count).
+    #
+    # Instead of downloading every page, we read the "last" page
+    # number from GitHub's Link header:
+    #   total = (last_page - 1) * 100 + commits on the last page
+    # So any repo needs at most 2 calls.
 
     url = f"https://api.github.com/repos/{owner}/{repo}/commits"
 
-    commits = github_request(
+    first_page = github_get(
         url,
         access_token,
         params={
-            "per_page": 100
+            "per_page": COMMITS_PER_PAGE
         }
     )
 
-    # Empty repo -> empty list
-    return commits or []
+    # Empty repo -> no commits
+    if first_page is None:
+        return [], 0
+
+    commits = first_page.json()
+
+    last_link = first_page.links.get("last")
+
+    # No "last" link -> everything fits on one page
+    if not last_link:
+        return commits, len(commits)
+
+    # Read the page number out of the "last" link
+    last_page_number = int(
+        parse_qs(urlparse(last_link["url"]).query)["page"][0]
+    )
+
+    last_page = github_request(
+        url,
+        access_token,
+        params={
+            "per_page": COMMITS_PER_PAGE,
+            "page": last_page_number
+        }
+    ) or []
+
+    total = (last_page_number - 1) * COMMITS_PER_PAGE + len(last_page)
+
+    return commits, total
 
 def get_repository_readme(access_token, owner, repo):
     url= f"https://api.github.com/repos/{owner}/{repo}/readme"

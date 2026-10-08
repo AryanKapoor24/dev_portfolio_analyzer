@@ -11,7 +11,7 @@ def analyze_commits(commits):
 
 def analyze_dates(access_token, owner, repo):
 
-    commits= get_repository_commits(
+    commits, _ = get_repository_commits(
         access_token, owner, repo
     )
 
@@ -182,12 +182,13 @@ def analyze_repos(access_token, repo):
     
     most_used_language = analyze_most_used_language(languages)
 
-    commits = get_repository_commits(
+    # commits = newest 100 (for 30-day activity)
+    # total_commits = real count across all pages
+    commits, total_commits = get_repository_commits(
         access_token,
         repo["owner"]["login"],
         repo["name"]
     )
-    total_commits = analyze_commits(commits)
 
     commit_frequency = analyze_commit_frequency(
         commits
