@@ -49,17 +49,33 @@ def generate_portfolio(access_token):
     repos_seconds = time.perf_counter() - start
     print(f"Fetched repository list in {repos_seconds:.2f}s")
 
+    # Analyze one repo; if anything goes wrong, skip it
+    # instead of crashing the whole portfolio.
+    def safe_analyze(repo):
+        try:
+            return analyze_repos(access_token, repo)
+        except Exception as error:
+            print(f"Skipping {repo['name']}: {error}")
+            return None
+
     # Analyze repositories in parallel.
-    # executor.map keeps results in the same order as repos,
-    # which app.py relies on when zipping the two lists.
+    # executor.map keeps results in the same order as repos.
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
 
-        analyzed_repos = list(
-            executor.map(
-                lambda repo: analyze_repos(access_token, repo),
-                repos
-            )
+        results = list(
+            executor.map(safe_analyze, repos)
         )
+
+    # Drop failed repos from BOTH lists so they stay aligned
+    # (app.py zips repos and analyzed_repos together).
+    pairs = [
+        (repo, result)
+        for repo, result in zip(repos, results)
+        if result is not None
+    ]
+
+    repos = [repo for repo, _ in pairs]
+    analyzed_repos = [result for _, result in pairs]
 
     # Generate overall developer profile
     developer_profile = analyze_developer(

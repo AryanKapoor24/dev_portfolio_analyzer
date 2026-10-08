@@ -160,7 +160,8 @@ def analyze_readme(access_token, owner, repo):
         repo
     )
 
-    if "content" in readme:
+    # readme is None when the repo has no README
+    if readme and "content" in readme:
         return True
 
     return False

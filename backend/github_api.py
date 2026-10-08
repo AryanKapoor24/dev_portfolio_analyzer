@@ -18,11 +18,19 @@ def github_request(url, access_token, params=None):
     response = requests.get(
         url,
         headers=headers,
-        params=params
+        params=params,
+        timeout=10
     )
 
     request_timings.append((url, time.perf_counter() - start))
 
+    # 404 = not found (e.g. repo has no README)
+    # 409 = repo is empty (e.g. no commits yet)
+    # These mean "no data", not a real error.
+    if response.status_code in (404, 409):
+        return None
+
+    # Any other error (bad token, rate limit, ...) is a real problem
     response.raise_for_status()
 
     return response.json()
@@ -60,8 +68,9 @@ def get_repository_languages(access_token, owner, repo):
 
     url = f"https://api.github.com/repos/{owner}/{repo}/languages"
 
-    return github_request(url, access_token)
-        
+    # No data -> empty dict
+    return github_request(url, access_token) or {}
+
 
 def get_repository_commits(access_token, owner, repo):
 
@@ -75,7 +84,8 @@ def get_repository_commits(access_token, owner, repo):
         }
     )
 
-    return commits
+    # Empty repo -> empty list
+    return commits or []
 
 def get_repository_readme(access_token, owner, repo):
     url= f"https://api.github.com/repos/{owner}/{repo}/readme"
