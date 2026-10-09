@@ -5,10 +5,17 @@ import requests
 def get_github_login_url():
     client_id = st.secrets["GITHUB_CLIENT_ID"]
 
+    # Set GITHUB_REDIRECT_URI in secrets when deployed
+    # (e.g. https://your-app.streamlit.app)
+    redirect_uri = st.secrets.get(
+        "GITHUB_REDIRECT_URI",
+        "http://localhost:8501"
+    )
+
     url = (
         "https://github.com/login/oauth/authorize"
         f"?client_id={client_id}"
-        "&redirect_uri=http://localhost:8501"
+        f"&redirect_uri={redirect_uri}"
         "&scope=read:user%20repo"
     )
 

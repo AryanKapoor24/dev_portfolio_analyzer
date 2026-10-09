@@ -1,4 +1,5 @@
-import time
+from datetime import datetime, timezone
+
 import streamlit as st
 
 from auth.github_oauth import (
@@ -10,6 +11,31 @@ from backend.github_api import get_github_user
 
 from backend.portfolio_service import generate_portfolio
 
+from frontend.styles import inject_styles
+
+from frontend.components import (
+    build_repo_table,
+    render_login,
+    render_sidebar,
+    render_header,
+    render_kpis,
+    render_overview,
+    render_repositories
+)
+
+
+# ==========================================
+# Page Configuration
+# ==========================================
+
+st.set_page_config(
+    page_title="DevFolio · GitHub Portfolio Analyzer",
+    page_icon="💻",
+    layout="wide"
+)
+
+inject_styles()
+
 
 # ==========================================
 # Cached Portfolio
@@ -20,25 +46,34 @@ from backend.portfolio_service import generate_portfolio
 # in the cache key (a new token is issued on every login).
 @st.cache_data(ttl=600, show_spinner=False)
 def get_portfolio(username, _access_token):
-    return generate_portfolio(_access_token)
+
+    portfolio = generate_portfolio(_access_token)
+
+    portfolio["generated_at"] = datetime.now(timezone.utc)
+
+    return portfolio
 
 
 # ==========================================
-# Page Configuration
+# Session Actions
 # ==========================================
 
-st.set_page_config(
-    page_title="Developer Portfolio Analyzer",
-    page_icon="💻",
-    layout="wide"
-)
+def logout():
+    # Forget the token and user for this browser session
+    for key in ("github_token", "github_user"):
+        st.session_state.pop(key, None)
+
+    st.query_params.clear()
 
 
-# ==========================================
-# Title
-# ==========================================
+def refresh_portfolio():
+    # Drop only this user's cached portfolio, so it is fetched again
+    user = st.session_state["github_user"]
 
-st.title("Developer Portfolio Analyzer")
+    get_portfolio.clear(
+        user["login"],
+        st.session_state["github_token"]
+    )
 
 
 # ==========================================
@@ -49,7 +84,11 @@ code = st.query_params.get("code")
 
 if code and "github_token" not in st.session_state:
 
-    token_data = exchange_code_for_token(code)
+    with st.spinner("Signing you in…"):
+
+        token_data = exchange_code_for_token(code)
+
+    st.query_params.clear()
 
     if "access_token" in token_data:
 
@@ -57,11 +96,14 @@ if code and "github_token" not in st.session_state:
 
         st.session_state["github_token"] = access_token
 
-        user = get_github_user(access_token)
+        st.session_state["github_user"] = get_github_user(access_token)
 
-        st.session_state["github_user"] = user
+    else:
 
-        st.query_params.clear()
+        st.error(
+            "GitHub sign-in failed or the link expired. Please try again.",
+            icon=":material/error:"
+        )
 
 
 # ==========================================
@@ -70,312 +112,52 @@ if code and "github_token" not in st.session_state:
 
 if "github_token" not in st.session_state:
 
-    st.subheader("Analyze your GitHub profile")
+    render_login(get_github_login_url())
 
-    st.write(
-        "Connect your GitHub account to analyze "
-        "your repositories and development activity."
-    )
-
-    login_url = get_github_login_url()
-
-    st.markdown(
-        f"""
-        <a href="{login_url}" target="_self">
-            <button style="
-                padding: 10px 20px;
-                font-size: 16px;
-                border-radius: 6px;
-                border: none;
-                cursor: pointer;
-            ">
-                Login with GitHub
-            </button>
-        </a>
-        """,
-        unsafe_allow_html=True
-    )
+    st.stop()
 
 
 # ==========================================
-# Logged-in User
+# Dashboard
 # ==========================================
 
-else:
+access_token = st.session_state["github_token"]
 
-    access_token = st.session_state["github_token"]
+user = st.session_state["github_user"]
 
-    user = st.session_state["github_user"]
+render_sidebar(
+    user,
+    on_refresh=refresh_portfolio,
+    on_logout=logout
+)
 
-    st.header(f"Welcome, {user['login']} 👋")
+with st.spinner("Analyzing your GitHub… this can take a few seconds the first time."):
 
-
-    # ======================================
-    # User Profile
-    # ======================================
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(
-            "Public Repositories",
-            user["public_repos"]
-        )
-
-    with col2:
-        st.metric(
-            "Followers",
-            user["followers"]
-        )
-
-    with col3:
-        st.metric(
-            "Following",
-            user["following"]
-        )
-
-
-    # ======================================
-    # Generate Portfolio
-    # ======================================
-
-    start = time.time()
-
-    with st.spinner("Analyzing your GitHub…"):
-
-        portfolio = get_portfolio(
-            user["login"],
-            access_token
-        )
-
-    end = time.time()
-
-    st.write(
-        f"Portfolio generation took "
-        f"{end - start:.2f} seconds"
+    portfolio = get_portfolio(
+        user["login"],
+        access_token
     )
 
-    repos = portfolio[
-        "repositories"
-    ]
+repos = portfolio["repositories"]
 
-    analyzed_repos = portfolio[
-        "analyzed_repositories"
-    ]
+analyzed_repos = portfolio["analyzed_repositories"]
 
-    developer_profile = portfolio[
-        "developer_profile"
-    ]
+developer_profile = portfolio["developer_profile"]
 
+table = build_repo_table(repos, analyzed_repos)
 
-    # ======================================
-    # Developer Profile
-    # ======================================
 
-    st.markdown("---")
+render_header(user, portfolio["generated_at"])
 
-    st.subheader("Developer Profile")
+render_kpis(developer_profile, table)
 
+overview_tab, repositories_tab = st.tabs([
+    ":material/insights: Overview",
+    ":material/folder: Repositories"
+])
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+with overview_tab:
+    render_overview(developer_profile, table)
 
-    with col1:
-        st.metric(
-            "Repositories",
-            developer_profile[
-                "total_repositories"
-            ]
-        )
-
-    with col2:
-        st.metric(
-            "Total Commits",
-            developer_profile[
-                "total_commits"
-            ]
-        )
-
-    with col3:
-        st.metric(
-            "Total Stars",
-            developer_profile[
-                "total_stars"
-            ]
-        )
-
-    with col4:
-        st.metric(
-            "Total Forks",
-            developer_profile[
-                "total_forks"
-            ]
-        )
-
-    with col5:
-        st.metric(
-            "Active Repositories",
-            developer_profile[
-                "active_repositories"
-            ]
-        )
-
-
-    # ======================================
-    # Language Distribution
-    # ======================================
-
-    st.subheader("Language Distribution")
-
-    language_distribution = developer_profile[
-        "total_distribution"
-    ]
-
-    if language_distribution:
-
-        for language, percentage in language_distribution.items():
-
-            st.write(
-                f"**{language}: {percentage}%**"
-            )
-
-    else:
-
-        st.write(
-            "No language data available."
-        )
-
-
-    # ======================================
-    # Repository Selection
-    # ======================================
-
-    st.markdown("---")
-
-    st.subheader("Select Repositories to Analyze")
-
-    repo_names = [
-        repo["name"]
-        for repo in repos
-    ]
-
-    st.multiselect(
-        "Choose repositories",
-        repo_names,
-        key="selected_repos"
-    )
-
-    selected_repos = st.session_state[
-        "selected_repos"
-    ]
-
-
-    # ======================================
-    # Show Selected Repositories
-    # ======================================
-
-    if selected_repos:
-
-        st.markdown("---")
-
-        st.subheader("Selected Repositories")
-
-
-        # analyzed_repos is built in the same order as repos
-        for repo, analysis in zip(repos, analyzed_repos):
-
-            if repo["name"] not in selected_repos:
-                continue
-
-
-            # ==================================
-            # Repository Information
-            # ==================================
-
-            col1, col2 = st.columns([3, 1])
-
-
-            with col1:
-
-                st.subheader(
-                    repo["name"]
-                )
-
-                if repo["description"]:
-
-                    st.write(
-                        repo["description"]
-                    )
-
-                else:
-
-                    st.write(
-                        "No description"
-                    )
-
-
-                # ----------------------------------
-                # Languages
-                # ----------------------------------
-
-                st.write(
-                    "💻 **Languages:**"
-                )
-
-                languages = analysis["language_bytes"]
-
-                if languages:
-
-                    for language, bytes_count in languages.items():
-
-                        st.write(
-                            f"- {language}: "
-                            f"{bytes_count} bytes"
-                        )
-
-                else:
-
-                    st.write(
-                        "No language data available"
-                    )
-
-
-            # ==================================
-            # Repository Statistics
-            # ==================================
-
-            with col2:
-
-                st.write(
-                    f"⭐ **Stars:** "
-                    f"{repo['stargazers_count']}"
-                )
-
-                st.write(
-                    f"🍴 **Forks:** "
-                    f"{repo['forks_count']}"
-                )
-
-                st.link_button(
-                    "View Repository",
-                    repo["html_url"]
-                )
-
-
-            # ==================================
-            # Commits
-            # ==================================
-
-            st.write(
-                f"📝 **Commits returned:** "
-                f"{analysis['total_commits']}"
-            )
-
-            st.markdown("---")
-
-
-    else:
-
-        st.info(
-            "Select one or more repositories "
-            "to view their details."
-        )
+with repositories_tab:
+    render_repositories(repos, analyzed_repos, table)

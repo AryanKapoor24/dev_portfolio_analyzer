@@ -1,0 +1,28 @@
+[theme]
+base = "dark"
+
+# GitHub-style dark surfaces
+backgroundColor = "#0d1117"
+secondaryBackgroundColor = "#161b22"
+textColor = "#e6edf3"
+borderColor = "#30363d"
+dataframeBorderColor = "#30363d"
+dataframeHeaderBackgroundColor = "#161b22"
+
+# Accent (buttons, links, focus) - same blue as the charts
+primaryColor = "#3987e5"
+linkColor = "#58a6ff"
+
+baseRadius = "10px"
+buttonRadius = "8px"
+showWidgetBorder = true
+showSidebarBorder = true
+
+headingFontWeights = [700, 650, 600]
+metricValueFontWeight = 650
+
+[theme.sidebar]
+backgroundColor = "#010409"
+
+[client]
+toolbarMode = "minimal"
