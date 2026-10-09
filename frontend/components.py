@@ -26,6 +26,14 @@ GITHUB_ICON = (
 # Helpers
 # ==========================================
 
+def render_html(html):
+    # Streamlit renders HTML through Markdown, where indented lines after a
+    # blank line become a code block. Strip indentation and blank lines so
+    # optional parts (e.g. an empty bio) can never break the layout.
+    lines = [line.strip() for line in html.splitlines()]
+    st.markdown(" ".join(line for line in lines if line), unsafe_allow_html=True)
+
+
 def time_ago(iso_date):
     # "2026-10-01T12:00:00Z" -> "3 days ago"
     if not iso_date:
@@ -118,7 +126,7 @@ def horizontal_bar_chart(df, label_field, value_field, value_title, value_format
 
 def render_login(login_url):
 
-    st.markdown(
+    render_html(
         f"""
         <div class="hero">
             <h1>Turn your GitHub into a<br><span class="accent">developer portfolio</span></h1>
@@ -130,8 +138,7 @@ def render_login(login_url):
                 {GITHUB_ICON} Sign in with GitHub
             </a>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     features = [
@@ -144,15 +151,14 @@ def render_login(login_url):
 
     for col, (icon, title, text) in zip(cols, features):
         with col:
-            st.markdown(
+            render_html(
                 f"""
                 <div class="feature-card">
                     <div class="icon">{icon}</div>
                     <h4>{title}</h4>
                     <p>{text}</p>
                 </div>
-                """,
-                unsafe_allow_html=True,
+                """
             )
 
     st.markdown(
@@ -188,7 +194,7 @@ def render_sidebar(user, on_refresh, on_logout):
         if meta_parts:
             meta = f'<div class="meta">{" · ".join(meta_parts)}</div>'
 
-        st.markdown(
+        render_html(
             f"""
             <div class="profile">
                 <img src="{escape(user['avatar_url'])}" alt="avatar">
@@ -201,8 +207,7 @@ def render_sidebar(user, on_refresh, on_logout):
                     <span><b>{user.get('following', 0)}</b> following</span>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
         st.divider()
