@@ -8,6 +8,11 @@ from urllib.parse import urlparse, parse_qs
 request_timings = []
 
 
+class GitHubAuthError(Exception):
+    # The access token is invalid, expired or revoked: the user must sign in again
+    pass
+
+
 def github_get(url, access_token, params=None):
     # Returns the full response (body + headers), or None for "no data"
     headers = {
@@ -31,6 +36,10 @@ def github_get(url, access_token, params=None):
     # These mean "no data", not a real error.
     if response.status_code in (404, 409):
         return None
+
+    # 401 = the token no longer works (revoked or replaced by a newer login)
+    if response.status_code == 401:
+        raise GitHubAuthError("Your GitHub session has expired.")
 
     # Any other error (bad token, rate limit, ...) is a real problem
     response.raise_for_status()

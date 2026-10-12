@@ -523,3 +523,81 @@ def render_repo_card(repo, analysis):
             icon=":material/open_in_new:",
             width="stretch",
         )
+
+
+# ==========================================
+# AI Insights tab
+# ==========================================
+
+def render_ai_intro(on_generate, has_repositories):
+
+    with st.container(border=True):
+
+        st.subheader("✨ AI Insights")
+
+        st.write(
+            "Get an AI-written assessment of your GitHub profile: a professional "
+            "summary, your strengths, what to improve, and roles that fit you."
+        )
+
+        st.caption(
+            "Uses your repository data (languages, commits, activity, READMEs). "
+            "Takes a few seconds."
+        )
+
+        st.button(
+            "Generate AI insights",
+            icon=":material/auto_awesome:",
+            type="primary",
+            on_click=on_generate,
+            disabled=not has_repositories,
+        )
+
+        if not has_repositories:
+            st.info("You need at least one repository to generate insights.")
+
+
+def render_ai_insights(insights, on_regenerate):
+
+    # ---------- Summary ----------
+    with st.container(border=True):
+
+        st.subheader("✨ Summary")
+
+        st.write(insights["summary"])
+
+        st.markdown("**Suitable roles**")
+
+        with st.container(horizontal=True, gap="small"):
+            for role in insights["suitable_roles"]:
+                st.badge(role, icon=":material/work:", color="blue")
+
+    # ---------- Strengths + improvements ----------
+    left, right = st.columns(2, gap="medium")
+
+    with left:
+        with st.container(border=True, height="stretch"):
+            st.subheader(":material/thumb_up: Strengths")
+            for strength in insights["strengths"]:
+                st.markdown(f"- {strength}")
+
+    with right:
+        with st.container(border=True, height="stretch"):
+            st.subheader(":material/trending_up: What to improve")
+            for improvement in insights["improvement_areas"]:
+                st.markdown(f"- {improvement}")
+
+    # ---------- Footer ----------
+    with st.container(horizontal=True, vertical_alignment="center"):
+
+        st.caption(
+            "AI-generated from your GitHub data and may contain mistakes. "
+            "Review it before sharing."
+        )
+
+        st.button(
+            "Regenerate",
+            icon=":material/refresh:",
+            type="tertiary",
+            on_click=on_regenerate,
+        )

@@ -7,9 +7,14 @@ from auth.github_oauth import (
     exchange_code_for_token
 )
 
-from backend.github_api import get_github_user
+from backend.github_api import get_github_user, GitHubAuthError
 
-from backend.portfolio_service import generate_portfolio
+from backend.portfolio_service import (
+    generate_portfolio,
+    generate_ai_insights
+)
+
+from backend.llm import describe_ai_error
 
 from frontend.styles import inject_styles
 
@@ -20,7 +25,9 @@ from frontend.components import (
     render_header,
     render_kpis,
     render_overview,
-    render_repositories
+    render_repositories,
+    render_ai_intro,
+    render_ai_insights
 )
 
 
@@ -54,13 +61,21 @@ def get_portfolio(username, _access_token):
     return portfolio
 
 
+# Cached per user AND per portfolio version: after "Refresh data" the
+# portfolio gets a new generated_at, so the insights are regenerated too.
+# _portfolio is not hashed (it is big); generated_at identifies it.
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_ai_insights(username, generated_at, _portfolio):
+    return generate_ai_insights(_portfolio)
+
+
 # ==========================================
 # Session Actions
 # ==========================================
 
 def logout():
     # Forget the token and user for this browser session
-    for key in ("github_token", "github_user"):
+    for key in ("github_token", "github_user", "ai_requested"):
         st.session_state.pop(key, None)
 
     st.query_params.clear()
@@ -74,6 +89,15 @@ def refresh_portfolio():
         user["login"],
         st.session_state["github_token"]
     )
+
+
+def request_ai_insights():
+    st.session_state["ai_requested"] = True
+
+
+def regenerate_ai_insights(username, generated_at):
+    # Drop the cached insights, so the next run asks the AI again
+    get_ai_insights.clear(username, generated_at, None)
 
 
 # ==========================================
@@ -112,6 +136,12 @@ if code and "github_token" not in st.session_state:
 
 if "github_token" not in st.session_state:
 
+    # e.g. "Your GitHub session has expired" after an automatic logout
+    login_message = st.session_state.pop("login_message", None)
+
+    if login_message:
+        st.warning(login_message, icon=":material/lock_clock:")
+
     render_login(get_github_login_url())
 
     st.stop()
@@ -131,12 +161,32 @@ render_sidebar(
     on_logout=logout
 )
 
-with st.spinner("Analyzing your GitHub… this can take a few seconds the first time."):
+try:
 
-    portfolio = get_portfolio(
-        user["login"],
-        access_token
+    with st.spinner("Analyzing your GitHub… this can take a few seconds the first time."):
+
+        portfolio = get_portfolio(
+            user["login"],
+            access_token
+        )
+
+except GitHubAuthError:
+    # Token no longer works: sign out and send the user back to the login page
+    logout()
+    st.session_state["login_message"] = (
+        "Your GitHub session has expired. Please sign in again."
     )
+    st.rerun()
+
+except Exception as error:
+    # GitHub down, rate limit, no internet... show a message instead of a crash
+    st.error(
+        "Couldn't load your GitHub data right now. Please try again in a moment.",
+        icon=":material/cloud_off:"
+    )
+    st.caption(f"Details: {error}")
+    st.button("Try again", icon=":material/refresh:")
+    st.stop()
 
 repos = portfolio["repositories"]
 
@@ -151,9 +201,10 @@ render_header(user, portfolio["generated_at"])
 
 render_kpis(developer_profile, table)
 
-overview_tab, repositories_tab = st.tabs([
+overview_tab, repositories_tab, ai_tab = st.tabs([
     ":material/insights: Overview",
-    ":material/folder: Repositories"
+    ":material/folder: Repositories",
+    ":material/auto_awesome: AI Insights"
 ])
 
 with overview_tab:
@@ -161,3 +212,39 @@ with overview_tab:
 
 with repositories_tab:
     render_repositories(repos, analyzed_repos, table)
+
+with ai_tab:
+
+    # The AI only runs after the user asks for it (it is slower and
+    # uses the API quota), then stays cached.
+    if not st.session_state.get("ai_requested"):
+
+        render_ai_intro(
+            on_generate=request_ai_insights,
+            has_repositories=len(repos) > 0
+        )
+
+    else:
+
+        try:
+            with st.spinner("Generating AI insights… this takes a few seconds."):
+
+                insights = get_ai_insights(
+                    user["login"],
+                    portfolio["generated_at"],
+                    portfolio
+                )
+
+            render_ai_insights(
+                insights,
+                on_regenerate=lambda: regenerate_ai_insights(
+                    user["login"],
+                    portfolio["generated_at"]
+                )
+            )
+
+        except Exception as error:
+            # An AI problem only affects this tab, never the dashboard
+            st.error(describe_ai_error(error), icon=":material/error:")
+
+            st.button("Try again", icon=":material/refresh:")

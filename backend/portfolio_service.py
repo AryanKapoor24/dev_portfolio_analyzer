@@ -2,8 +2,9 @@ import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
-from backend.github_api import get_github_repos, request_timings
+from backend.github_api import get_github_repos, request_timings, GitHubAuthError
 from backend.analyzer import analyze_repos, analyze_developer
+from backend.ai_analyzer import generate_developer_insights
 
 
 # How many repositories to analyze at the same time
@@ -54,6 +55,9 @@ def generate_portfolio(access_token):
     def safe_analyze(repo):
         try:
             return analyze_repos(access_token, repo)
+        except GitHubAuthError:
+            # A dead token affects every repo: stop instead of skipping them all
+            raise
         except Exception as error:
             print(f"Skipping {repo['name']}: {error}")
             return None
@@ -93,3 +97,13 @@ def generate_portfolio(access_token):
         "analyzed_repositories": analyzed_repos,
         "developer_profile": developer_profile
     }
+
+
+def generate_ai_insights(portfolio):
+
+    # Kept separate from generate_portfolio(), so the dashboard loads
+    # without waiting for the AI, and an AI failure can't break it.
+    insights = generate_developer_insights(portfolio)
+
+    # Plain dict, so Streamlit can cache it
+    return insights.model_dump()
