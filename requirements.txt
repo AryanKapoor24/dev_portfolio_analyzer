@@ -1,0 +1,7 @@
+# Requires Python 3.11+ (backend/llm.py uses the built-in tomllib)
+streamlit>=1.40
+altair>=5.0
+pandas>=2.0
+requests>=2.31
+groq>=0.11
+pydantic>=2.0
