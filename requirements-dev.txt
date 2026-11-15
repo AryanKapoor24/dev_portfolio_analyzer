@@ -1,0 +1,4 @@
+# Tools for testing and linting (not needed to run the app)
+-r requirements.txt
+pytest>=8.0
+ruff>=0.5

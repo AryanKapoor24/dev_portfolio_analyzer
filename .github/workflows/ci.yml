@@ -1,0 +1,32 @@
+name: CI
+
+# Run on every push and every pull request
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Get the code
+      - uses: actions/checkout@v4
+
+      # 2. Same Python version as Streamlit Cloud
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # 3. Build: install the app + test tools
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # 4. Lint: catch real errors (undefined names, duplicate functions...)
+      - name: Lint
+        run: ruff check .
+
+      # 5. Test: GitHub and the AI are mocked, so no secrets are needed
+      - name: Run tests
+        run: pytest -v

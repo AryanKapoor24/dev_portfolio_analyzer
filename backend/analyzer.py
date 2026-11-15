@@ -40,24 +40,6 @@ def analyze_dates(access_token, owner, repo):
     
 
 
-def analyze_commit_frequency(commits):
-    counter = 0
-
-    today = datetime.now(timezone.utc)
-    thirty_days_ago = today - timedelta(days=30)
-
-    for i in range(len(commits)):
-        date = commits[i]["commit"]["author"]["date"]
-
-        commit_date = datetime.fromisoformat(
-            date.replace("Z", "+00:00")
-        )
-
-        if commit_date >= thirty_days_ago:
-            counter += 1
-
-    return counter
-
 def analyze_most_used_language(languages):
 
     if not languages:

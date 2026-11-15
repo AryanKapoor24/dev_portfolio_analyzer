@@ -1,3 +1,5 @@
+# Manual check against the REAL Groq API (not run by pytest/CI; uses quota).
+# Run from the project root:  python -m scripts.check_ai_analyzer
 import sys
 
 from backend.ai_analyzer import generate_developer_insights
